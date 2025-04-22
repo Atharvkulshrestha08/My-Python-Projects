@@ -1,0 +1,138 @@
+import nltk
+from nltk.tokenize import sent_tokenize
+from nltk.corpus import stopwords
+import re
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
+import requests
+
+# Download necessary NLTK resources
+nltk.download('punkt')
+nltk.download('stopwords')
+
+# Google API Configuration
+API_KEY = "AIzaSyDxUB3QMm3pSf_c_cAATDBYwk3BCl-hT9c"  # Replace with your actual API key
+CX_KEY = "678f73d6a07ec4f34"  # Replace with your actual Custom Search Engine ID
+
+def clean_text(text):
+    """Removes special characters and extra spaces from text."""
+    text = re.sub(r'[^\x00-\x7F]+', ' ', text)  # Remove non-ASCII characters
+    text = re.sub(r'\s+', ' ', text).strip()  # Remove extra spaces
+    return text
+
+def format_answer(text):
+    """Formats the answer into bullet points with spacing."""
+    sentences = sent_tokenize(text)
+    return '\n\n'.join([f"• {sentence}" for sentence in sentences])  # Double spacing
+
+def fetch_online_data(query):
+    """Fetch relevant data using Google Search API."""
+    try:
+        search_url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={API_KEY}&cx={CX_KEY}"
+        response = requests.get(search_url)
+        results = response.json().get("items", [])
+        return ' '.join([item["snippet"] for item in results[:5]])  # Extract first 5 snippets
+    except:
+        return "No additional data found."
+
+def generate_questions(text, marks):
+    """Generates multiple questions based on the given text and marks weightage."""
+    sentences = sent_tokenize(text)
+    questions = []
+    
+    if marks == 2:
+        questions = [f"Define: {sentence}" for sentence in sentences[:15]]
+    elif marks == 5:
+        questions = [f"Explain how: {sentence}" for sentence in sentences[:10]]
+    elif marks == 10:
+        if len(sentences) < 3:
+            return ["Not enough content for a detailed discussion."]
+        questions = [f"Discuss the importance of: {' '.join(sentences[i:i+3])}" for i in range(0, len(sentences), 3)][:3]
+    
+    return questions if questions else ["No valid questions generated."]
+
+def generate_flashcards(text, marks):
+    """Generates a list of flashcards with multiple questions."""
+    text = clean_text(text)
+    
+    if len(text.split()) < 5:  # If input is too short, fetch relevant data
+        text += " " + fetch_online_data(text)
+    
+    questions = generate_questions(text, marks)
+    flashcards = [(q, format_answer(text)) for q in questions]
+    return flashcards
+
+class FlashcardApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Flashcard Generator")
+        self.flashcards = []
+        self.current_index = 0
+        
+        # Input Box
+        self.text_input = scrolledtext.ScrolledText(root, width=100, height=10)
+        self.text_input.pack(pady=10)
+        
+        # Marks Selection
+        tk.Label(root, text="Select Question Type").pack()
+        self.marks_var = tk.IntVar()
+        tk.Radiobutton(root, text="2 Marks", variable=self.marks_var, value=2).pack()
+        tk.Radiobutton(root, text="5 Marks", variable=self.marks_var, value=5).pack()
+        tk.Radiobutton(root, text="10 Marks", variable=self.marks_var, value=10).pack()
+        
+        # Generate Button
+        self.generate_btn = tk.Button(root, text="Generate Flashcards", command=self.generate)
+        self.generate_btn.pack(pady=5)
+        
+        # Flashcard Display
+        self.question_label = tk.Label(root, text="", wraplength=800, font=("Arial", 14, "bold"))
+        self.question_label.pack(pady=10)
+        
+        self.answer_label = scrolledtext.ScrolledText(root, width=100, height=10, font=("Arial", 12))
+        self.answer_label.pack()
+        
+        # Navigation Buttons
+        self.prev_btn = tk.Button(root, text="Previous", command=self.prev_card)
+        self.next_btn = tk.Button(root, text="Next", command=self.next_card)
+        self.prev_btn.pack(side=tk.LEFT, padx=20)
+        self.next_btn.pack(side=tk.RIGHT, padx=20)
+    
+    def generate(self):
+        text = self.text_input.get("1.0", tk.END).strip()
+        marks = self.marks_var.get()
+        
+        if not text:
+            messagebox.showerror("Error", "Please enter study notes or a topic title.")
+            return
+        
+        if marks not in [2, 5, 10]:
+            messagebox.showerror("Error", "Please select a valid question type.")
+            return
+        
+        self.flashcards = generate_flashcards(text, marks)
+        self.current_index = 0
+        self.display_card()
+    
+    def display_card(self):
+        if self.flashcards:
+            question, answer = self.flashcards[self.current_index]
+            self.question_label.config(text=question)
+            self.answer_label.delete("1.0", tk.END)
+            self.answer_label.insert(tk.END, answer)
+    
+    def next_card(self):
+        if self.current_index < len(self.flashcards) - 1:
+            self.current_index += 1
+            self.display_card()
+        else:
+            messagebox.showinfo("End", "No more questions available.")
+    
+    def prev_card(self):
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.display_card()
+        
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FlashcardApp(root)
+    root.mainloop()
