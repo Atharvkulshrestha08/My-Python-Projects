@@ -11,8 +11,8 @@ nltk.download('punkt')
 nltk.download('stopwords')
 
 # Google API Configuration
-API_KEY = "AIzaSyDxUB3QMm3pSf_c_cAATDBYwk3BCl-hT9c"  # Replace with your actual API key
-CX_KEY = "678f73d6a07ec4f34"  # Replace with your actual Custom Search Engine ID
+API_KEY = ""  # Replace with your actual API key
+CX_KEY = ""  # Replace with your actual Custom Search Engine ID
 
 def clean_text(text):
     """Removes special characters and extra spaces from text."""
